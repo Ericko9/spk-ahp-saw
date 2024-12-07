@@ -1,0 +1,18 @@
+mari kita membuat website system pendukung keputusan menggunakan metode SAW dan AHP untuk menghitung bobotnya. mari kita bangun menggunakan nodejs dan reactjs. website yang kita buat adalah Sistem Pemilihan Vendor Pengadaan Alat Tulis di Kantor
+Spesifikasi Tugas:
+Topik final project yang dipilih tidak boleh sama dengan kelompok lainnya
+Tentukan kriteria yang relevan untuk topik yang dipilih (minimal 3). Penentuan kriteria dapat diambil melalui studi literatur dari buku, jurnal penelitian, skripsi atau tesis, maupun sumber ilmiah lainnya
+Tentukan bobot untuk setiap kriteria menggunakan metode AHP. Penentuan bobot dilakukan seperti langkah nomor 2
+Tentukan data alternatif yang dibuat secara dummy menyesuaikan dengan topik yang dipilih
+Implementasikan metode MADM: Pilih salah satu metode MADM yang sesuai dengan permasalahan yang dipilih (SAW, WP, TOPSIS)
+Kembangkan sistem/aplikasi yang menerima input dari pengguna dan memberikan hasil rekomendasi berdasarkan perhitungan MADM. Sistem/Aplikasi ini dapat berbentuk aplikasi web, desktop, atau spreadsheet yang interaktif. 
+Lakukan pengujian: Uji sistem dengan beberapa skenario input (Kriteria atau Alternatif) untuk memastikan keakuratan perhitungan dan rekomendasi. 
+
+tampilan website yang saya inginkan
+user login
+masuk ke halaman dashboard dan terdapat 5 sidebar (dashboard, alternatif, kriteria, assessment, laporan)
+dashboard : menampilkan keseluruhan data
+alternatif : menambahkan alternatif vendor pengadaan alat tulis
+kriteria : menambahkan kriteria lalu menambahkan bobot AHP dan dihitung
+assessment : menambahkan periode penilaian dan penilaian karyawan setiap periode
+laporan : menampilkan laporan kinerja vendor pengadaan alat tulis
