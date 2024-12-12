@@ -1,0 +1,10 @@
+,Harga,Kualitas,Pengiriman,
+Harga,1,,,
+Kualitas,,1,,
+Pengiriman,,,1,
+,,,,
+,Harga,Kualitas,Pengiriman,Avarage
+Harga,0.43,0.44,0.38,0.42
+Kualitas,0.43,0.44,0.5,0.46
+Pengiriman,0.14,0.11,0.13,0.13
+Jumlah,1,1,1,1

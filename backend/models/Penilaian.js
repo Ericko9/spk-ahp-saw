@@ -26,6 +26,11 @@ const penilaianSchema = new mongoose.Schema({
   nilaiAkhir: {
     type: Number,
     default: 0
+  },
+  metode: {
+    type: String,
+    enum: ['saw', 'wp'],
+    default: 'saw'
   }
 }, {
   timestamps: true

@@ -12,50 +12,118 @@
         </div>
       </div>
 
-      <div v-if="showLaporan" class="laporan-content">
-        <div class="laporan-header">
-          <h3>Laporan Penilaian Vendor</h3>
-          <p>Periode: {{ formatDate(selectedPeriode) }}</p>
+      <div v-if="detailPerhitungan" class="perhitungan-section">
+        <!-- AHP Section -->
+        <div class="calculation-box">
+          <h3>Perhitungan Bobot Kriteria (AHP)</h3>
+          <div class="step-box">
+            <h4>Hasil Perhitungan Bobot</h4>
+            <table class="result-table">
+              <thead>
+                <tr>
+                  <th>Kriteria</th>
+                  <th>Bobot</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in detailPerhitungan.ahp.bobotKriteria" :key="item.kriteria">
+                  <td>{{ item.kriteria }}</td>
+                  <td>{{ item.bobot.toFixed(4) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Ranking</th>
-              <th>Vendor</th>
-              <th>Nilai Akhir</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in penilaian" :key="item._id">
-              <td>{{ index + 1 }}</td>
-              <td>{{ item.vendor?.nama }}</td>
-              <td>{{ item.nilaiAkhir.toFixed(3) }}</td>
-              <td>
-                <span :class="['status', {
-                  'status-tinggi': index === 0,
-                  'status-sedang': index === 1,
-                  'status-rendah': index > 1
-                }]">
-                  {{ index === 0 ? 'Sangat Baik' : index === 1 ? 'Baik' : 'Cukup' }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- SAW Section -->
+        <div class="calculation-box">
+          <h3>Perhitungan SAW</h3>
+          <div class="step-box">
+            <h4>1. Matrix Awal</h4>
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th v-for="nilai in detailPerhitungan.saw.matrixAwal[0].nilai" :key="nilai.kriteria">
+                    {{ nilai.kriteria }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in detailPerhitungan.saw.matrixAwal" :key="row.vendor">
+                  <td>{{ row.vendor }}</td>
+                  <td v-for="nilai in row.nilai" :key="nilai.kriteria">
+                    {{ nilai.nilai.toFixed(2) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="step-box">
+            <h4>2. Matrix Normalisasi</h4>
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th v-for="nilai in detailPerhitungan.saw.matrixNormalisasi[0].nilai" :key="nilai.kriteria">
+                    {{ nilai.kriteria }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in detailPerhitungan.saw.matrixNormalisasi" :key="row.vendor">
+                  <td>{{ row.vendor }}</td>
+                  <td v-for="nilai in row.nilai" :key="nilai.kriteria">
+                    {{ nilai.nilai.toFixed(4) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="step-box">
+            <h4>3. Hasil Akhir</h4>
+            <table class="result-table">
+              <thead>
+                <tr>
+                  <th>Ranking</th>
+                  <th>Vendor</th>
+                  <th>Nilai Akhir</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(hasil, index) in detailPerhitungan.hasilAkhir" :key="hasil.vendor">
+                  <td>{{ hasil.ranking }}</td>
+                  <td>{{ hasil.vendor }}</td>
+                  <td>{{ hasil.nilaiAkhir.toFixed(4) }}</td>
+                  <td>
+                    <span :class="['status', {
+                      'status-tinggi': index === 0,
+                      'status-sedang': index === 1,
+                      'status-rendah': index > 1
+                    }]">
+                      {{ hasil.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div class="action-buttons">
-          <button @click="printLaporan" class="print-button">
-            <i class="fas fa-print"></i> Cetak PDF
-          </button>
           <button @click="exportToExcel" class="excel-button">
             <i class="fas fa-file-excel"></i> Export Excel
+          </button>
+          <button @click="printLaporan" class="print-button">
+            <i class="fas fa-print"></i> Cetak PDF
           </button>
         </div>
       </div>
 
-      <div v-else-if="penilaian.length === 0 && showLaporan" class="no-data">
+      <div v-else-if="showLaporan && !detailPerhitungan" class="no-data">
         <p>Tidak ada data penilaian untuk periode yang dipilih</p>
       </div>
     </div>
@@ -63,31 +131,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import MainLayout from '../layouts/MainLayout.vue'
 import axios from 'axios'
 import * as XLSX from 'xlsx'
 
 const selectedPeriode = ref(new Date().toISOString().slice(0, 7))
-const penilaian = ref([])
 const showLaporan = ref(false)
+const detailPerhitungan = ref(null)
 
 const fetchLaporan = async () => {
   try {
-    // Parse periode yang dipilih
-    const [year, month] = selectedPeriode.value.split('-')
-    const startDate = new Date(year, month - 1, 1)
-    const endDate = new Date(year, month, 0)
+    // Ambil data kriteria untuk mendapatkan bobot
+    const kriteriaResponse = await axios.get('/api/kriteria')
+    const kriteriaData = kriteriaResponse.data
 
-    const response = await axios.get('/api/penilaian', {
-      params: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+    // Ambil data perhitungan penilaian
+    const penilaianResponse = await axios.get(`/api/penilaian/perhitungan/${selectedPeriode.value}`)
+    const penilaianData = penilaianResponse.data
+
+    // Update detailPerhitungan hanya dengan bobot kriteria
+    detailPerhitungan.value = {
+      ...penilaianData,
+      ahp: {
+        bobotKriteria: kriteriaData.map(k => ({
+          kriteria: k.nama,
+          bobot: k.bobot
+        }))
       }
-    })
+    }
 
-    // Sort penilaian berdasarkan nilai akhir (descending)
-    penilaian.value = response.data.sort((a, b) => b.nilaiAkhir - a.nilaiAkhir)
     showLaporan.value = true
   } catch (error) {
     console.error('Error fetching laporan:', error)
@@ -95,74 +168,62 @@ const fetchLaporan = async () => {
   }
 }
 
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('id-ID', {
-    year: 'numeric',
-    month: 'long'
-  })
+const exportToExcel = async () => {
+  try {
+    // Siapkan data untuk export
+    const workbook = XLSX.utils.book_new()
+
+    // 1. Sheet Bobot Kriteria
+    const bobotKriteriaData = detailPerhitungan.value.ahp.bobotKriteria.map(item => ({
+      'Kriteria': item.kriteria,
+      'Bobot': item.bobot.toFixed(4)
+    }))
+    const bobotWS = XLSX.utils.json_to_sheet(bobotKriteriaData)
+    XLSX.utils.book_append_sheet(workbook, bobotWS, 'Bobot Kriteria')
+
+    // 2. Sheet Matrix Awal
+    const matrixAwalData = detailPerhitungan.value.saw.matrixAwal.map(row => {
+      const data = { 'Vendor': row.vendor }
+      row.nilai.forEach(n => {
+        data[n.kriteria] = n.nilai.toFixed(2)
+      })
+      return data
+    })
+    const matrixAwalWS = XLSX.utils.json_to_sheet(matrixAwalData)
+    XLSX.utils.book_append_sheet(workbook, matrixAwalWS, 'Matrix Awal')
+
+    // 3. Sheet Matrix Normalisasi
+    const matrixNormalisasiData = detailPerhitungan.value.saw.matrixNormalisasi.map(row => {
+      const data = { 'Vendor': row.vendor }
+      row.nilai.forEach(n => {
+        data[n.kriteria] = n.nilai.toFixed(4)
+      })
+      return data
+    })
+    const matrixNormalisasiWS = XLSX.utils.json_to_sheet(matrixNormalisasiData)
+    XLSX.utils.book_append_sheet(workbook, matrixNormalisasiWS, 'Matrix Normalisasi')
+
+    // 4. Sheet Hasil Akhir
+    const hasilAkhirData = detailPerhitungan.value.hasilAkhir.map(row => ({
+      'Ranking': row.ranking,
+      'Vendor': row.vendor,
+      'Nilai Akhir': row.nilaiAkhir.toFixed(4),
+      'Status': row.status
+    }))
+    const hasilAkhirWS = XLSX.utils.json_to_sheet(hasilAkhirData)
+    XLSX.utils.book_append_sheet(workbook, hasilAkhirWS, 'Hasil Akhir')
+
+    // Export file
+    XLSX.writeFile(workbook, `Laporan_Penilaian_${selectedPeriode.value}.xlsx`)
+  } catch (error) {
+    console.error('Error exporting to excel:', error)
+    alert('Gagal mengexport data ke Excel')
+  }
 }
 
 const printLaporan = () => {
   window.print()
 }
-
-const exportToExcel = () => {
-  try {
-    // Siapkan data untuk excel
-    const excelData = penilaian.value.map((item, index) => {
-      const baseData = {
-        'Ranking': index + 1,
-        'Vendor': item.vendor?.nama || '',
-      }
-
-      // Tambahkan nilai per kriteria
-      const nilaiKriteria = {}
-      item.nilai.forEach(n => {
-        nilaiKriteria[n.kriteria.nama] = n.nilai
-      })
-
-      return {
-        ...baseData,
-        ...nilaiKriteria,
-        'Nilai Akhir': Number(item.nilaiAkhir.toFixed(3)),
-        'Status': index === 0 ? 'Sangat Baik' : index === 1 ? 'Baik' : 'Cukup'
-      }
-    })
-
-    // Buat workbook baru
-    const wb = XLSX.utils.book_new()
-    
-    // Buat worksheet
-    const ws = XLSX.utils.json_to_sheet(excelData)
-
-    // Atur lebar kolom
-    const colWidths = [
-      { wch: 10 }, // Ranking
-      { wch: 20 }, // Vendor
-      ...penilaian.value[0]?.nilai.map(() => ({ wch: 15 })), // Kriteria
-      { wch: 15 }, // Nilai Akhir
-      { wch: 15 }  // Status
-    ]
-    ws['!cols'] = colWidths
-
-    // Tambahkan worksheet ke workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Laporan Penilaian')
-
-    // Generate nama file dengan periode
-    const fileName = `Laporan_Penilaian_${selectedPeriode.value}.xlsx`
-
-    // Simpan file
-    XLSX.writeFile(wb, fileName)
-  } catch (error) {
-    console.error('Error exporting to Excel:', error)
-    alert('Gagal mengexport ke Excel: ' + error.message)
-  }
-}
-
-onMounted(() => {
-  // Reset tampilan laporan saat komponen dimuat
-  showLaporan.value = false
-})
 </script>
 
 <style scoped>
@@ -308,6 +369,75 @@ th {
 
   .laporan-content {
     box-shadow: none;
+  }
+}
+
+.perhitungan-section {
+  margin-top: 2rem;
+}
+
+.calculation-box {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.step-box {
+  margin-bottom: 2rem;
+}
+
+.matrix-table, .result-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.matrix-table th,
+.matrix-table td,
+.result-table th,
+.result-table td {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.matrix-table th,
+.result-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.matrix-table td:first-child,
+.result-table td:first-child {
+  font-weight: 500;
+}
+
+h3 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+}
+
+h4 {
+  color: #34495e;
+  margin-bottom: 1rem;
+}
+
+@media print {
+  .filter-section,
+  .action-buttons {
+    display: none;
+  }
+
+  .calculation-box {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .matrix-table,
+  .result-table {
+    font-size: 10pt;
   }
 }
 </style> 

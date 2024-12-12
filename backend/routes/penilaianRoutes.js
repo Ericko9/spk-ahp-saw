@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
+const { getAHPSteps, getSAWSteps } = require('../utils/calculationSteps');
 const Penilaian = require('../models/Penilaian');
 const Kriteria = require('../models/Kriteria');
-const { protect } = require('../middleware/auth');
 
 router.use(protect);
 
@@ -205,5 +206,99 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ message: error.message })
   }
 })
+
+// GET historical data
+router.get('/history', async (req, res) => {
+  try {
+    const { vendorId, startDate, endDate } = req.query
+    
+    const historicalData = await Penilaian.find({
+      vendor: vendorId,
+      periode: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      }
+    }).sort({ periode: 1 })
+    
+    res.json(historicalData)
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+// GET detail perhitungan
+router.get('/perhitungan/:periode', async (req, res) => {
+  try {
+    const { periode } = req.params;
+    const [year, month] = periode.split('-');
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    // Ambil data penilaian periode tersebut
+    const penilaianList = await Penilaian.find({
+      periode: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }).populate(['vendor', 'nilai.kriteria'])
+    .sort({ nilaiAkhir: -1 });
+
+    if (penilaianList.length === 0) {
+      return res.status(404).json({ message: 'Data tidak ditemukan untuk periode ini' });
+    }
+
+    // Ambil kriteria
+    const kriteria = await Kriteria.find();
+    
+    // Siapkan data untuk perhitungan
+    const vendors = penilaianList.map(p => p.vendor);
+    const matrix = penilaianList.map(p => 
+      kriteria.map(k => {
+        const nilai = p.nilai.find(n => n.kriteria.equals(k._id));
+        return nilai ? nilai.nilai : 0;
+      })
+    );
+    const weights = kriteria.map(k => k.bobot);
+
+    // Buat matrix perbandingan AHP default jika tidak ada
+    const defaultAHPMatrix = kriteria.map(() => 
+      kriteria.map(() => 1)
+    );
+
+    // Hitung langkah-langkah
+    const ahpSteps = getAHPSteps(defaultAHPMatrix, kriteria);
+    const sawSteps = getSAWSteps(matrix, weights, kriteria, vendors);
+
+    res.json({
+      periode: {
+        start: startDate,
+        end: endDate
+      },
+      ahp: ahpSteps,
+      saw: sawSteps,
+      hasilAkhir: penilaianList.map((p, index) => ({
+        ranking: index + 1,
+        vendor: p.vendor.nama,
+        nilaiAkhir: p.nilaiAkhir,
+        status: index === 0 ? 'Sangat Baik' : index === 1 ? 'Baik' : 'Cukup'
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting perhitungan:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Export to Excel endpoint
+router.get('/export/:periode', async (req, res) => {
+  try {
+    const { periode } = req.params;
+    const data = await exportToExcel(periode);
+    res.json(data);
+  } catch (error) {
+    console.error('Error exporting to excel:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
 
 module.exports = router; 

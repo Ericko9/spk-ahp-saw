@@ -116,4 +116,56 @@ router.post('/hitung-ahp', async (req, res) => {
   }
 })
 
+
+
+// Tambahkan route baru untuk mendapatkan pairwise matrix
+router.get('/pairwise-matrix', async (req, res) => {
+  try {
+    const kriteria = await Kriteria.find();
+    
+    // Buat matrix perbandingan default jika belum ada
+    const n = kriteria.length;
+    const pairwiseMatrix = [];
+    
+    // Inisialisasi matrix dengan perbandingan bobot
+    for (let i = 0; i < n; i++) {
+      pairwiseMatrix[i] = [];
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          // Diagonal matrix selalu 1
+          pairwiseMatrix[i][j] = 1;
+        } else {
+          // Hitung perbandingan dari bobot yang tersimpan
+          pairwiseMatrix[i][j] = kriteria[i].bobot / kriteria[j].bobot;
+        }
+      }
+    }
+
+    res.json(pairwiseMatrix);
+  } catch (error) {
+    console.error('Error getting pairwise matrix:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Tambahkan route untuk menyimpan pairwise matrix (opsional)
+router.post('/pairwise-matrix', async (req, res) => {
+  try {
+    const { pairwiseMatrix } = req.body;
+    
+    // Validasi matrix
+    if (!pairwiseMatrix || !Array.isArray(pairwiseMatrix)) {
+      return res.status(400).json({ message: 'Invalid matrix format' });
+    }
+
+    // Simpan atau update matrix di database
+    // ... kode untuk menyimpan matrix ...
+
+    res.json({ message: 'Matrix saved successfully' });
+  } catch (error) {
+    console.error('Error saving pairwise matrix:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router; 
